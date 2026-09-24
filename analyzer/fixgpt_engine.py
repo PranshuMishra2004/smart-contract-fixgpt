@@ -25,19 +25,34 @@ def analyze_contract(
     source_file: str,
     project_root: str = ".",
 ) -> list[SecurityFinding]:
+    """
+    Run the initial Slither analysis and parse the
+    generated report.
+
+    All report paths are resolved against the isolated
+    project workspace so the code works both locally
+    and in a deployed container.
+    """
+
+    root = Path(project_root).resolve()
 
     print(
         "Running initial security analysis..."
     )
 
     report_file = (
-        "reports/generated/initial_slither.json"
-    )
+        root
+        / "reports"
+        / "generated"
+        / "initial_slither.json"
+    ).resolve()
 
     run_slither_analysis(
-        project_root=project_root,
-        source_file=source_file,
-        report_file=report_file,
+        project_root=str(root),
+        source_file=str(
+            Path(source_file).resolve()
+        ),
+        report_file=str(report_file),
     )
 
     print(
@@ -45,10 +60,9 @@ def analyze_contract(
     )
 
     return analyze_report(
-        report_file=report_file,
-        source_root=project_root,
+        report_file=str(report_file),
+        source_root=str(root),
     )
-
 
 def select_actionable_findings(
     findings: list[SecurityFinding],
