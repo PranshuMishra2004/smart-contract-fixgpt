@@ -1,0 +1,38 @@
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Foundry
+out/
+cache/
+broadcast/
+
+# FixGPT generated files
+reports/generated/
+reports/uploads/
+reports/workspaces/
+
+# Test ZIPs / temporary files
+e2e-test-project.zip
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+# Foundry dependency
+**/lib/
+
+# FixGPT runtime reports
+reports/
