@@ -22,10 +22,7 @@ function VerificationItem({ label, status }) {
   return (
     <div className="verification-item">
       <span>{label}</span>
-
-      <strong className={className}>
-        {text}
-      </strong>
+      <strong className={className}>{text}</strong>
     </div>
   );
 }
@@ -150,11 +147,8 @@ function buildMarkdownReport(report) {
   markdown += "## Summary\n\n";
 
   markdown += `- Total findings: ${report.summary.total_findings}\n`;
-
   markdown += `- Actionable findings: ${report.summary.actionable_findings}\n`;
-
   markdown += `- Skipped findings: ${report.summary.skipped_findings}\n`;
-
   markdown += `- Verified fixes: ${report.summary.verified_fixes}\n\n`;
 
   markdown += "---\n\n";
@@ -164,92 +158,66 @@ function buildMarkdownReport(report) {
       markdown += `## Finding #${index + 1}: ${finding.category}\n\n`;
 
       markdown += `**Severity:** ${finding.severity}\n\n`;
-
       markdown += `**Confidence:** ${finding.confidence}\n\n`;
-
       markdown += `**Detector:** ${finding.check}\n\n`;
-
       markdown += `**Function:** ${finding.function || "N/A"}\n\n`;
-
       markdown += `**Lines:** ${finding.start_line}-${finding.end_line}\n\n`;
 
       markdown += "### Detector Description\n\n";
-
       markdown += `${finding.description || "No description available."}\n\n`;
 
       markdown += "### Source Code\n\n";
-
       markdown += "```solidity\n";
-
       markdown += `${finding.source_code || ""}\n`;
-
       markdown += "```\n\n";
 
       if (finding.remediation) {
         const remediation = finding.remediation;
         const verification = remediation.verification || {};
 
-        markdown += "## AI Remediation\n\n";
+        markdown += "### AI Remediation\n\n";
 
-        markdown += "### Explanation\n\n";
-
+        markdown += "#### Explanation\n\n";
         markdown += `${remediation.explanation || "N/A"}\n\n`;
 
-        markdown += "### Root Cause\n\n";
-
+        markdown += "#### Root Cause\n\n";
         markdown += `${remediation.root_cause || "N/A"}\n\n`;
 
-        markdown += "### Recommendation\n\n";
-
+        markdown += "#### Recommendation\n\n";
         markdown += `${remediation.recommendation || "N/A"}\n\n`;
 
-        markdown += "### Fixed Code\n\n";
-
+        markdown += "#### Fixed Code\n\n";
         markdown += "```solidity\n";
-
         markdown += `${remediation.fixed_code || ""}\n`;
-
         markdown += "```\n\n";
 
-        markdown += "### Code Changes\n\n";
-
+        markdown += "#### Code Changes\n\n";
         markdown += "```diff\n";
-
         markdown += `${remediation.code_diff || "No code changes detected."}\n`;
-
         markdown += "```\n\n";
 
         markdown += "### Verification\n\n";
 
         markdown += `- Compilation: ${
-          verification.compilation
-            ? "PASSED"
-            : "FAILED"
+          verification.compilation ? "PASSED" : "FAILED"
         }\n`;
 
         markdown += `- Slither target vulnerability: ${
-          verification.slither
-            ? "REMOVED"
-            : "STILL DETECTED"
+          verification.slither ? "REMOVED" : "STILL DETECTED"
         }\n`;
 
         const foundry = verification.foundry;
 
         if (foundry?.applicable) {
           markdown += `- Foundry security test: ${
-            foundry.passed
-              ? "PASSED"
-              : "FAILED"
+            foundry.passed ? "PASSED" : "FAILED"
           }\n`;
         } else {
-          markdown +=
-            "- Foundry security test: NOT APPLICABLE\n";
+          markdown += "- Foundry security test: NOT APPLICABLE\n";
         }
 
         markdown += `- Overall verification: ${
-          verification.overall
-            ? "PASSED"
-            : "FAILED"
+          verification.overall ? "PASSED" : "FAILED"
         }\n`;
 
         const remaining =
@@ -261,8 +229,7 @@ function buildMarkdownReport(report) {
             : "None"
         }\n\n`;
       } else {
-        markdown += "## AI Remediation\n\n";
-
+        markdown += "### AI Remediation\n\n";
         markdown +=
           "No AI-generated remediation was created for this finding.\n\n";
       }
@@ -277,11 +244,8 @@ function buildMarkdownReport(report) {
 
 function App() {
   const [file, setFile] = useState(null);
-
   const [report, setReport] = useState(null);
-
   const [error, setError] = useState("");
-
   const [loading, setLoading] = useState(false);
 
 
@@ -359,8 +323,7 @@ function App() {
 
       if (!response.ok) {
         throw new Error(
-          data.detail ||
-            "Analysis failed."
+          data.detail || "Analysis failed."
         );
       }
 
@@ -417,16 +380,29 @@ function App() {
 
       <header className="header">
 
-        <div>
-          <h1>
-            Smart Contract FixGPT
-          </h1>
+        <div className="brand">
 
-          <p>
-            AI-powered Solidity vulnerability
-            detection, remediation, and verification.
-          </p>
+          <img
+            src="/ether-authority-logo.png"
+            alt="Ether Authority"
+            className="brand-logo"
+          />
+
+          <div className="brand-divider"></div>
+
+          <div>
+            <h1>
+              Smart Contract FixGPT
+            </h1>
+
+            <p>
+              AI-powered Solidity vulnerability
+              detection, remediation, and verification.
+            </p>
+          </div>
+
         </div>
+
 
         <div className="status-badge">
           ● Engine Ready
@@ -536,8 +512,6 @@ function App() {
         {report && (
           <section className="results-section">
 
-            {/* REPORT HEADER */}
-
             <div className="results-header">
 
               <div>
@@ -578,8 +552,6 @@ function App() {
             </div>
 
 
-            {/* REPORT ACTIONS */}
-
             <div className="report-actions">
 
               <button
@@ -599,15 +571,10 @@ function App() {
             </div>
 
 
-            {/* SUMMARY */}
-
             <div className="summary-grid">
 
               <div className="summary-card">
-                <span>
-                  Total Findings
-                </span>
-
+                <span>Total Findings</span>
                 <strong>
                   {summary?.total_findings ?? 0}
                 </strong>
@@ -615,10 +582,7 @@ function App() {
 
 
               <div className="summary-card">
-                <span>
-                  Actionable
-                </span>
-
+                <span>Actionable</span>
                 <strong>
                   {summary?.actionable_findings ?? 0}
                 </strong>
@@ -626,10 +590,7 @@ function App() {
 
 
               <div className="summary-card">
-                <span>
-                  Skipped
-                </span>
-
+                <span>Skipped</span>
                 <strong>
                   {summary?.skipped_findings ?? 0}
                 </strong>
@@ -637,10 +598,7 @@ function App() {
 
 
               <div className="summary-card">
-                <span>
-                  Verified Fixes
-                </span>
-
+                <span>Verified Fixes</span>
                 <strong>
                   {summary?.verified_fixes ?? 0}
                 </strong>
@@ -648,8 +606,6 @@ function App() {
 
             </div>
 
-
-            {/* FINDINGS */}
 
             <div className="findings-list">
 
@@ -678,8 +634,6 @@ function App() {
                       className="finding-card"
                       key={`${finding.check}-${index}`}
                     >
-
-                      {/* FINDING HEADER */}
 
                       <div className="finding-header">
 
@@ -717,35 +671,32 @@ function App() {
                       </div>
 
 
-                      {/* FINDING META */}
-
                       <div className="finding-meta">
 
                         <span>
-                          Detector:{" "}
+                          Detector:
                           <strong>
                             {finding.check}
                           </strong>
                         </span>
 
                         <span>
-                          Function:{" "}
+                          Function:
                           <strong>
                             {finding.function || "N/A"}
                           </strong>
                         </span>
 
                         <span>
-                          Lines:{" "}
+                          Lines:
                           <strong>
-                            {finding.start_line}
-                            -
+                            {finding.start_line}-
                             {finding.end_line}
                           </strong>
                         </span>
 
                         <span>
-                          Confidence:{" "}
+                          Confidence:
                           <strong>
                             {finding.confidence}
                           </strong>
@@ -753,8 +704,6 @@ function App() {
 
                       </div>
 
-
-                      {/* DESCRIPTION */}
 
                       <div className="result-block">
 
@@ -769,8 +718,6 @@ function App() {
 
                       </div>
 
-
-                      {/* SOURCE */}
 
                       <div className="result-block">
 
@@ -787,8 +734,6 @@ function App() {
 
                       </div>
 
-
-                      {/* REMEDIATION */}
 
                       {remediation ? (
                         <>
@@ -866,8 +811,6 @@ function App() {
                           </div>
 
 
-                          {/* VERIFICATION */}
-
                           <div className="verification-result">
 
                             <div className="verification-header">
@@ -878,20 +821,16 @@ function App() {
 
                               <strong
                                 className={
-                                  verificationStatus.overall ===
-                                  "passed"
+                                  verificationStatus.overall === "passed"
                                     ? "status-passed"
-                                    : verificationStatus.overall ===
-                                        "failed"
+                                    : verificationStatus.overall === "failed"
                                       ? "status-failed"
                                       : "status-na"
                                 }
                               >
-                                {verificationStatus.overall ===
-                                "passed"
+                                {verificationStatus.overall === "passed"
                                   ? "✓ VERIFIED"
-                                  : verificationStatus.overall ===
-                                      "failed"
+                                  : verificationStatus.overall === "failed"
                                     ? "✗ FAILED"
                                     : "NOT VERIFIED"}
                               </strong>
@@ -908,7 +847,6 @@ function App() {
                                 }
                               />
 
-
                               <VerificationItem
                                 label="Slither Target"
                                 status={
@@ -916,14 +854,12 @@ function App() {
                                 }
                               />
 
-
                               <VerificationItem
                                 label="Foundry Security Test"
                                 status={
                                   verificationStatus.foundry
                                 }
                               />
-
 
                               <VerificationItem
                                 label="Overall Verification"
@@ -934,8 +870,6 @@ function App() {
 
                             </div>
 
-
-                            {/* REMAINING DETECTORS */}
 
                             <div className="remaining-detectors">
 
