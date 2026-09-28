@@ -25,8 +25,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 RUN pip install --no-cache-dir slither-analyzer solc-select
 
-RUN solc-select install 0.8.24 && \
-    solc-select use 0.8.24
+RUN solc-select install 0.8.33 && \
+    solc-select use 0.8.33
 
 COPY analyzer ./analyzer
 COPY backend ./backend
