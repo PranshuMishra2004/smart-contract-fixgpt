@@ -16,18 +16,29 @@ RUN apt-get update && \
         pkg-config && \
     rm -rf /var/lib/apt/lists/*
 
+# Install Foundry
 RUN curl -L https://foundry.paradigm.xyz | bash && \
     /root/.foundry/bin/foundryup
 
+# Install Python dependencies
 COPY requirements.txt .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-RUN pip install --no-cache-dir slither-analyzer solc-select
+# Solidity security tooling
+RUN pip install --no-cache-dir \
+    slither-analyzer \
+    solc-select
 
-RUN solc-select install 0.8.33 && \
+# Pre-install commonly used Solidity versions.
+# FixGPT can install additional versions at runtime
+# when a contract requires them.
+RUN solc-select install 0.8.24 && \
+    solc-select install 0.8.28 && \
+    solc-select install 0.8.33 && \
     solc-select use 0.8.33
 
+# Copy application
 COPY analyzer ./analyzer
 COPY backend ./backend
 COPY contracts ./contracts

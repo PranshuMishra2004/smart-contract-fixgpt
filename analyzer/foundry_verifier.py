@@ -1,207 +1,543 @@
+from __future__ import annotations
+
 import re
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
+from analyzer.compiler_manager import (
+    select_compiler_version,
+)
 
-def find_contract_name(source_code: str) -> str:
-    """
-    Find a Solidity contract containing a withdraw function.
-    """
 
-    matches = re.finditer(
-        r"\bcontract\s+([A-Za-z_][A-Za-z0-9_]*)",
-        source_code,
+COMMAND_TIMEOUT = 180
+
+CONTRACT_PATTERN = re.compile(
+    r"\bcontract\s+([A-Za-z_][A-Za-z0-9_]*)\b"
+)
+
+
+def find_contract_name(
+    source_file: str | Path,
+) -> str:
+    source_path = Path(
+        source_file
+    ).resolve()
+
+    source = source_path.read_text(
+        encoding="utf-8"
     )
 
-    for match in matches:
-        contract_name = match.group(1)
-
-        if "function withdraw" in source_code:
-            return contract_name
-
-    raise ValueError(
-        "Could not find a Solidity contract with a withdraw function."
+    matches = CONTRACT_PATTERN.findall(
+        source
     )
+
+    if not matches:
+        raise RuntimeError(
+            f"Could not determine contract name "
+            f"from {source_path}"
+        )
+
+    return matches[0]
+
+
+def create_temp_foundry_project(
+    project_root: str,
+    source_file: str,
+) -> tuple[
+    tempfile.TemporaryDirectory,
+    Path,
+    str,
+]:
+    root = Path(
+        project_root
+    ).resolve()
+
+    source_path = Path(
+        source_file
+    )
+
+    if not source_path.is_absolute():
+        source_path = (
+            root / source_path
+        )
+
+    source_path = source_path.resolve()
+
+    if not source_path.exists():
+        raise FileNotFoundError(
+            f"Contract not found: {source_path}"
+        )
+
+    temp_dir = tempfile.TemporaryDirectory(
+        prefix="fixgpt_foundry_",
+        dir=root,
+    )
+
+    project_dir = Path(
+        temp_dir.name
+    )
+
+    src_dir = project_dir / "src"
+    test_dir = project_dir / "test"
+
+    src_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    test_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    candidate_path = (
+        src_dir / "Candidate.sol"
+    )
+
+    shutil.copy2(
+        source_path,
+        candidate_path,
+    )
+
+    contract_name = find_contract_name(
+        source_path
+    )
+
+    return (
+        temp_dir,
+        candidate_path,
+        contract_name,
+    )
+
+
+def write_foundry_config(
+    project_dir: Path,
+    compiler_version: str,
+) -> None:
+    config = f"""
+[profile.default]
+src = "src"
+test = "test"
+out = "out"
+libs = []
+solc_version = "{compiler_version}"
+""".strip() + "\n"
+
+    (
+        project_dir / "foundry.toml"
+    ).write_text(
+        config,
+        encoding="utf-8",
+    )
+
+
+def run_forge_test(
+    project_dir: Path,
+    test_name: str,
+) -> subprocess.CompletedProcess:
+    command = [
+        "forge",
+        "test",
+        "--match-test",
+        test_name,
+    ]
+
+    print(
+        f"    Running Foundry test: "
+        f"{test_name}"
+    )
+
+    try:
+        return subprocess.run(
+            command,
+            cwd=project_dir,
+            capture_output=True,
+            text=True,
+            timeout=COMMAND_TIMEOUT,
+        )
+
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            "Foundry test timed out after "
+            f"{COMMAND_TIMEOUT} seconds."
+        ) from exc
 
 
 def run_foundry_reentrancy_test(
     project_root: str,
-    candidate_file: str,
+    source_file: str,
 ) -> dict:
     """
-    Run a Foundry test against a candidate contract to verify
-    that a reentrancy attack is blocked.
+    Verify that a candidate bank contract
+    blocks a reentrancy attack.
     """
 
-    root = Path(project_root)
-    candidate_path = root / candidate_file
+    temp_dir = None
 
-    if not candidate_path.exists():
-        raise FileNotFoundError(
-            f"Candidate contract not found: {candidate_path}"
+    try:
+        (
+            temp_dir,
+            candidate_path,
+            contract_name,
+        ) = create_temp_foundry_project(
+            project_root,
+            source_file,
         )
 
-    source_code = candidate_path.read_text(
-        encoding="utf-8"
-    )
+        project_dir = Path(
+            temp_dir.name
+        )
 
-    contract_name = find_contract_name(
-        source_code
-    )
+        compiler_version = (
+            select_compiler_version(
+                candidate_path
+            )
+        )
 
-    generated_src_dir = (
-        root / "contracts" / "src" / "generated"
-    )
+        write_foundry_config(
+            project_dir,
+            compiler_version,
+        )
 
-    generated_test_dir = (
-        root / "contracts" / "test" / "generated"
-    )
-
-    generated_src_dir.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    generated_test_dir.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    generated_contract = (
-        generated_src_dir / candidate_path.name
-    )
-
-    generated_test = (
-        generated_test_dir
-        / "ReentrancyFixVerification.t.sol"
-    )
-
-    shutil.copy2(
-        candidate_path,
-        generated_contract,
-    )
-
-    test_source = f"""
+        test_source = f"""
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity {compiler_version};
 
-import {{Test}} from "forge-std/Test.sol";
-import {{ {contract_name} }} from "../../src/generated/{candidate_path.name}";
+import "../src/Candidate.sol";
 
+interface Vm {{
+    function deal(
+        address who,
+        uint256 newBalance
+    ) external;
+}}
+
+interface IBank {{
+    function deposit() external payable;
+    function withdraw() external;
+}}
 
 contract ReentrancyAttacker {{
+    IBank public target;
+    bool internal entered;
 
-    {contract_name} public bank;
+    constructor(
+        IBank _target
+    ) {{
+        target = _target;
+    }}
 
-    constructor(address bankAddress) {{
-        bank = {contract_name}(bankAddress);
+    function deposit()
+        external
+        payable
+    {{
+        target.deposit{{
+            value: msg.value
+        }}();
+    }}
+
+    function attack()
+        external
+    {{
+        target.withdraw();
     }}
 
     receive() external payable {{
-        bank.withdraw();
-    }}
-
-    function attack() external {{
-        bank.deposit{{value: 1 ether}}();
-        bank.withdraw();
+        if (!entered) {{
+            entered = true;
+            target.withdraw();
+        }}
     }}
 }}
 
-
-contract ReentrancyFixVerification is Test {{
-
-    {contract_name} public bank;
-    ReentrancyAttacker public attacker;
-
-    function setUp() public {{
-        vm.deal(address(this), 100 ether);
-
-        bank = new {contract_name}();
-
-        attacker = new ReentrancyAttacker(
-            address(bank)
+contract SecurityTest {{
+    Vm constant vm =
+        Vm(
+            address(
+                uint160(
+                    uint256(
+                        keccak256(
+                            "hevm cheat code"
+                        )
+                    )
+                )
+            )
         );
+
+    function testReentrancyBlocked()
+        external
+    {{
+        {contract_name} target =
+            new {contract_name}();
+
+        ReentrancyAttacker attacker =
+            new ReentrancyAttacker(
+                IBank(address(target))
+            );
 
         vm.deal(
             address(attacker),
             1 ether
         );
 
-        bank.deposit{{value: 10 ether}}();
-    }}
+        attacker.deposit{{
+            value: 1 ether
+        }}();
 
-    function testReentrancyAttackIsBlocked() public {{
-        vm.expectRevert();
+        vm.deal(
+            address(target),
+            2 ether
+        );
 
-        attacker.attack();
+        uint256 balanceBefore =
+            address(target).balance;
 
-        assertEq(
-            address(bank).balance,
-            10 ether
+        (
+            bool success,
+        ) = address(attacker).call(
+            abi.encodeWithSignature(
+                "attack()"
+            )
+        );
+
+        require(
+            !success,
+            "Reentrancy attack succeeded"
+        );
+
+        require(
+            address(target).balance
+                == balanceBefore,
+            "Target balance changed"
         );
     }}
 }}
-""".strip()
+""".strip() + "\n"
 
-    generated_test.write_text(
-        test_source + "\n",
-        encoding="utf-8",
-    )
-
-    try:
-        print(
-            "    Running Foundry reentrancy test..."
+        test_file = (
+            project_dir
+            / "test"
+            / "SecurityTest.t.sol"
         )
 
-        result = subprocess.run(
-            [
-                "forge",
-                "test",
-                "--match-path",
-                "test/generated/ReentrancyFixVerification.t.sol",
-                "-vv",
-            ],
-            cwd=root / "contracts",
-            capture_output=True,
-            text=True,
-            timeout=120,
+        test_file.write_text(
+            test_source,
+            encoding="utf-8",
         )
 
-        if result.returncode != 0:
-            return {
-                "applicable": True,
-                "success": False,
-                "passed": False,
-                "contract": contract_name,
-                "stdout": result.stdout,
-                "stderr": result.stderr,
-            }
+        result = run_forge_test(
+            project_dir,
+            "testReentrancyBlocked",
+        )
 
         return {
             "applicable": True,
-            "success": True,
-            "passed": True,
+            "success": result.returncode == 0,
+            "passed": result.returncode == 0,
             "contract": contract_name,
             "stdout": result.stdout,
             "stderr": result.stderr,
         }
 
-    except subprocess.TimeoutExpired as exc:
+    except Exception as exc:
         return {
             "applicable": True,
             "success": False,
             "passed": False,
-            "contract": contract_name,
+            "contract": Path(
+                source_file
+            ).stem,
             "stdout": "",
-            "stderr": (
-                "Foundry test timed out after 120 seconds."
-            ),
+            "stderr": str(exc),
         }
 
     finally:
-        if generated_contract.exists():
-            generated_contract.unlink()
+        if temp_dir is not None:
+            temp_dir.cleanup()
 
-        if generated_test.exists():
-            generated_test.unlink()
+
+def run_foundry_tx_origin_test(
+    project_root: str,
+    source_file: str,
+) -> dict:
+    """
+    Verify that a candidate authentication
+    contract blocks an intermediary contract
+    from bypassing authorization.
+    """
+
+    temp_dir = None
+
+    try:
+        (
+            temp_dir,
+            candidate_path,
+            contract_name,
+        ) = create_temp_foundry_project(
+            project_root,
+            source_file,
+        )
+
+        project_dir = Path(
+            temp_dir.name
+        )
+
+        compiler_version = (
+            select_compiler_version(
+                candidate_path
+            )
+        )
+
+        write_foundry_config(
+            project_dir,
+            compiler_version,
+        )
+
+        test_source = f"""
+// SPDX-License-Identifier: MIT
+pragma solidity {compiler_version};
+
+import "../src/Candidate.sol";
+
+interface Vm {{
+    function startPrank(
+        address msgSender,
+        address txOrigin
+    ) external;
+
+    function stopPrank()
+        external;
+}}
+
+interface IAuth {{
+    function changeBeneficiary(
+        address newBeneficiary
+    ) external;
+
+    function beneficiary()
+        external
+        view
+        returns (address);
+}}
+
+contract OriginAttacker {{
+    function attack(
+        IAuth target,
+        address newBeneficiary
+    ) external {{
+        target.changeBeneficiary(
+            newBeneficiary
+        );
+    }}
+}}
+
+contract SecurityTest {{
+    Vm constant vm =
+        Vm(
+            address(
+                uint160(
+                    uint256(
+                        keccak256(
+                            "hevm cheat code"
+                        )
+                    )
+                )
+            )
+        );
+
+    function testTxOriginBlocked()
+        external
+    {{
+        address owner =
+            address(0x1001);
+
+        vm.startPrank(
+            owner,
+            owner
+        );
+
+        {contract_name} target =
+            new {contract_name}();
+
+        vm.stopPrank();
+
+        OriginAttacker attacker =
+            new OriginAttacker();
+
+        address maliciousBeneficiary =
+            address(0xBEEF);
+
+        vm.startPrank(
+            owner,
+            owner
+        );
+
+        (
+            bool success,
+        ) = address(attacker).call(
+            abi.encodeWithSelector(
+                OriginAttacker.attack.selector,
+                IAuth(address(target)),
+                maliciousBeneficiary
+            )
+        );
+
+        vm.stopPrank();
+
+        require(
+            !success,
+            "tx.origin authorization succeeded"
+        );
+
+        require(
+            IAuth(address(target))
+                .beneficiary()
+                == owner,
+            "Beneficiary changed"
+        );
+    }}
+}}
+""".strip() + "\n"
+
+        test_file = (
+            project_dir
+            / "test"
+            / "SecurityTest.t.sol"
+        )
+
+        test_file.write_text(
+            test_source,
+            encoding="utf-8",
+        )
+
+        result = run_forge_test(
+            project_dir,
+            "testTxOriginBlocked",
+        )
+
+        return {
+            "applicable": True,
+            "success": result.returncode == 0,
+            "passed": result.returncode == 0,
+            "contract": contract_name,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+        }
+
+    except Exception as exc:
+        return {
+            "applicable": True,
+            "success": False,
+            "passed": False,
+            "contract": Path(
+                source_file
+            ).stem,
+            "stdout": "",
+            "stderr": str(exc),
+        }
+
+    finally:
+        if temp_dir is not None:
+            temp_dir.cleanup()

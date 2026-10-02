@@ -1,6 +1,11 @@
 import json
+import os
 import subprocess
 from pathlib import Path
+
+from analyzer.compiler_manager import (
+    get_solc_env_for_source,
+)
 
 from analyzer.security_test_registry import (
     get_security_test,
@@ -13,6 +18,7 @@ COMMAND_TIMEOUT = 180
 def run_command(
     command: list[str],
     cwd: Path,
+    env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess:
     """
     Run a command with a timeout.
@@ -23,15 +29,20 @@ def run_command(
     )
 
     try:
+
         result = subprocess.run(
             command,
             cwd=cwd,
             capture_output=True,
             text=True,
             timeout=COMMAND_TIMEOUT,
+            env=env
+            if env is not None
+            else os.environ.copy(),
         )
 
     except subprocess.TimeoutExpired as exc:
+
         raise RuntimeError(
             f"Command timed out after "
             f"{COMMAND_TIMEOUT} seconds:\n"
@@ -46,24 +57,39 @@ def compile_contract(
     source_file: str,
 ) -> dict:
     """
-    Compile the candidate Solidity contract.
+    Compile the candidate Solidity contract using
+    the compiler version required by its pragma.
     """
 
-    root = Path(project_root).resolve()
-    source_path = Path(source_file)
+    root = Path(
+        project_root
+    ).resolve()
+
+    source_path = Path(
+        source_file
+    )
 
     if not source_path.is_absolute():
-        source_path = root / source_path
+        source_path = (
+            root / source_path
+        )
 
     source_path = source_path.resolve()
 
     if not source_path.exists():
+
         raise FileNotFoundError(
             f"Contract not found: {source_path}"
         )
 
     print(
         "    Compiling candidate contract..."
+    )
+
+    solc_environment = (
+        get_solc_env_for_source(
+            source_path
+        )
     )
 
     result = run_command(
@@ -73,9 +99,11 @@ def compile_contract(
             str(source_path),
         ],
         root,
+        env=solc_environment,
     )
 
     if result.returncode != 0:
+
         raise RuntimeError(
             "Candidate compilation failed.\n\n"
             f"STDOUT:\n{result.stdout}\n\n"
@@ -99,14 +127,22 @@ def run_slither(
     output_file: str,
 ) -> dict:
     """
-    Run Slither against the candidate contract.
+    Run Slither against the candidate contract using
+    the Solidity compiler required by its pragma.
     """
 
-    root = Path(project_root).resolve()
-    source_path = Path(source_file)
+    root = Path(
+        project_root
+    ).resolve()
+
+    source_path = Path(
+        source_file
+    )
 
     if not source_path.is_absolute():
-        source_path = root / source_path
+        source_path = (
+            root / source_path
+        )
 
     source_path = source_path.resolve()
 
@@ -115,6 +151,7 @@ def run_slither(
     ).resolve()
 
     if not source_path.exists():
+
         raise FileNotFoundError(
             f"Contract not found: {source_path}"
         )
@@ -128,19 +165,29 @@ def run_slither(
         "    Running Slither re-analysis..."
     )
 
+    solc_environment = (
+        get_solc_env_for_source(
+            source_path
+        )
+    )
+
     result = run_command(
         [
             "slither",
             str(source_path),
             "--compile-force-framework",
             "solc",
+            "--solc",
+            "solc",
             "--json",
             str(output_path),
         ],
         root,
+        env=solc_environment,
     )
 
     if not output_path.exists():
+
         raise RuntimeError(
             "Slither did not create "
             "the expected report.\n\n"
@@ -152,9 +199,13 @@ def run_slither(
         "r",
         encoding="utf-8",
     ) as file:
-        report = json.load(file)
+
+        report = json.load(
+            file
+        )
 
     if not report.get("success"):
+
         raise RuntimeError(
             "Slither report contains "
             f"an error: {report.get('error')}"
