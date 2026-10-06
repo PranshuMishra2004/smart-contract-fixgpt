@@ -949,3 +949,68 @@
     flex: 1;
   }
 }
+
+.project-result {
+  min-width: 190px;
+
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  padding: 14px 16px;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+
+  background: white;
+
+  box-shadow:
+    0 6px 20px rgba(15, 23, 42, 0.04);
+}
+
+.project-score span {
+  display: block;
+
+  color: #64748b;
+
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.project-score strong {
+  display: block;
+
+  margin-top: 2px;
+
+  color: #111827;
+
+  font-size: 26px;
+}
+
+.project-score small {
+  margin-left: 2px;
+
+  color: #64748b;
+
+  font-size: 13px;
+}
+
+.project-status {
+  padding: 7px 10px;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+
+  font-size: 11px;
+  font-weight: 800;
+
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .project-result {
+    width: 100%;
+
+    justify-content: space-between;
+  }
+}

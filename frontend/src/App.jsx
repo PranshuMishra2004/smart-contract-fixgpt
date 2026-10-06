@@ -4,6 +4,7 @@ import "./App.css";
 const API_URL =
   "https://smart-contract-fixgpt.onrender.com";
 
+
 function VerificationItem({ label, status }) {
   let className = "";
   let text = "";
@@ -22,14 +23,17 @@ function VerificationItem({ label, status }) {
   return (
     <div className="verification-item">
       <span>{label}</span>
-      <strong className={className}>{text}</strong>
+      <strong className={className}>
+        {text}
+      </strong>
     </div>
   );
 }
 
 
 function getVerificationStatus(remediation) {
-  const verification = remediation?.verification;
+  const verification =
+    remediation?.verification;
 
   if (!verification) {
     return {
@@ -73,7 +77,8 @@ function getVerificationStatus(remediation) {
 
 
 function getFindingStatus(finding) {
-  const remediation = finding?.remediation;
+  const remediation =
+    finding?.remediation;
 
   if (!remediation) {
     return {
@@ -110,15 +115,21 @@ function severityClass(severity) {
 }
 
 
-function downloadFile(content, filename, type) {
+function downloadFile(
+  content,
+  filename,
+  type
+) {
   const blob = new Blob(
     [content],
     { type }
   );
 
-  const url = URL.createObjectURL(blob);
+  const url =
+    URL.createObjectURL(blob);
 
-  const link = document.createElement("a");
+  const link =
+    document.createElement("a");
 
   link.href = url;
   link.download = filename;
@@ -134,102 +145,225 @@ function downloadFile(content, filename, type) {
 
 
 function buildMarkdownReport(report) {
-  let markdown = "";
+  const summary =
+    report.summary || {};
 
-  markdown += "# Smart Contract FixGPT Security Report\n\n";
+  const project =
+    report.project || {};
 
-  markdown += `Generated: ${report.generated_at}\n\n`;
+  let markdown =
+    "# Smart Contract FixGPT Security Report\n\n";
 
-  markdown += `Source: ${report.source_file}\n\n`;
+  markdown +=
+    `Generated: ${report.generated_at}\n\n`;
+
+  markdown +=
+    `Source: ${report.source_file}\n\n`;
+
+  markdown += "---\n\n";
+
+  markdown += "## Project Result\n\n";
+
+  markdown +=
+    `**Project Score:** ${
+      project.score ??
+      summary.project_score ??
+      0
+    }/100\n\n`;
+
+  markdown +=
+    `**Status:** ${
+      project.status ??
+      summary.status ??
+      "FAIL"
+    }\n\n`;
 
   markdown += "---\n\n";
 
   markdown += "## Summary\n\n";
 
-  markdown += `- Total findings: ${report.summary.total_findings}\n`;
-  markdown += `- Actionable findings: ${report.summary.actionable_findings}\n`;
-  markdown += `- Skipped findings: ${report.summary.skipped_findings}\n`;
-  markdown += `- Verified fixes: ${report.summary.verified_fixes}\n\n`;
+  markdown +=
+    `- Total findings: ${
+      summary.total_findings ?? 0
+    }\n`;
+
+  markdown +=
+    `- Actionable findings: ${
+      summary.actionable_findings ?? 0
+    }\n`;
+
+  markdown +=
+    `- Skipped findings: ${
+      summary.skipped_findings ?? 0
+    }\n`;
+
+  markdown +=
+    `- Verified fixes: ${
+      summary.verified_fixes ?? 0
+    }\n\n`;
 
   markdown += "---\n\n";
 
-  report.findings.forEach(
+  (report.findings || []).forEach(
     (finding, index) => {
-      markdown += `## Finding #${index + 1}: ${finding.category}\n\n`;
+      markdown +=
+        `## Finding #${index + 1}: ${
+          finding.category
+        }\n\n`;
 
-      markdown += `**Severity:** ${finding.severity}\n\n`;
-      markdown += `**Confidence:** ${finding.confidence}\n\n`;
-      markdown += `**Detector:** ${finding.check}\n\n`;
-      markdown += `**Function:** ${finding.function || "N/A"}\n\n`;
-      markdown += `**Lines:** ${finding.start_line}-${finding.end_line}\n\n`;
+      markdown +=
+        `**Severity:** ${
+          finding.severity
+        }\n\n`;
 
-      markdown += "### Detector Description\n\n";
-      markdown += `${finding.description || "No description available."}\n\n`;
+      markdown +=
+        `**Confidence:** ${
+          finding.confidence
+        }\n\n`;
 
-      markdown += "### Source Code\n\n";
-      markdown += "```solidity\n";
-      markdown += `${finding.source_code || ""}\n`;
-      markdown += "```\n\n";
+      markdown +=
+        `**Detector:** ${
+          finding.check
+        }\n\n`;
+
+      markdown +=
+        `**Function:** ${
+          finding.function || "N/A"
+        }\n\n`;
+
+      markdown +=
+        `**Lines:** ${
+          finding.start_line
+        }-${finding.end_line}\n\n`;
+
+      markdown +=
+        "### Description\n\n";
+
+      markdown +=
+        `${finding.description || "No description available."}\n\n`;
+
+      markdown +=
+        "### Resolution\n\n";
+
+      markdown +=
+        `${finding.resolution || "No resolution available."}\n\n`;
+
+      markdown +=
+        "### Source Code\n\n";
+
+      markdown +=
+        "```solidity\n";
+
+      markdown +=
+        `${finding.source_code || ""}\n`;
+
+      markdown +=
+        "```\n\n";
 
       if (finding.remediation) {
-        const remediation = finding.remediation;
-        const verification = remediation.verification || {};
+        const remediation =
+          finding.remediation;
 
-        markdown += "### AI Remediation\n\n";
+        const verification =
+          remediation.verification || {};
 
-        markdown += "#### Explanation\n\n";
-        markdown += `${remediation.explanation || "N/A"}\n\n`;
+        markdown +=
+          "### AI Remediation\n\n";
 
-        markdown += "#### Root Cause\n\n";
-        markdown += `${remediation.root_cause || "N/A"}\n\n`;
+        markdown +=
+          "#### Explanation\n\n";
 
-        markdown += "#### Recommendation\n\n";
-        markdown += `${remediation.recommendation || "N/A"}\n\n`;
+        markdown +=
+          `${remediation.explanation || "N/A"}\n\n`;
 
-        markdown += "#### Fixed Code\n\n";
-        markdown += "```solidity\n";
-        markdown += `${remediation.fixed_code || ""}\n`;
-        markdown += "```\n\n";
+        markdown +=
+          "#### Root Cause\n\n";
 
-        markdown += "#### Code Changes\n\n";
-        markdown += "```diff\n";
-        markdown += `${remediation.code_diff || "No code changes detected."}\n`;
-        markdown += "```\n\n";
+        markdown +=
+          `${remediation.root_cause || "N/A"}\n\n`;
 
-        markdown += "### Verification\n\n";
+        markdown +=
+          "#### Recommendation\n\n";
 
-        markdown += `- Compilation: ${
-          verification.compilation ? "PASSED" : "FAILED"
-        }\n`;
+        markdown +=
+          `${remediation.recommendation || "N/A"}\n\n`;
 
-        markdown += `- Slither target vulnerability: ${
-          verification.slither ? "REMOVED" : "STILL DETECTED"
-        }\n`;
+        markdown +=
+          "#### Fixed Code\n\n";
 
-        const foundry = verification.foundry;
+        markdown +=
+          "```solidity\n";
+
+        markdown +=
+          `${remediation.fixed_code || ""}\n`;
+
+        markdown +=
+          "```\n\n";
+
+        markdown +=
+          "#### Code Changes\n\n";
+
+        markdown +=
+          "```diff\n";
+
+        markdown +=
+          `${remediation.code_diff || "No code changes detected."}\n`;
+
+        markdown +=
+          "```\n\n";
+
+        markdown +=
+          "### Verification\n\n";
+
+        markdown +=
+          `- Compilation: ${
+            verification.compilation
+              ? "PASSED"
+              : "FAILED"
+          }\n`;
+
+        markdown +=
+          `- Slither target vulnerability: ${
+            verification.slither
+              ? "REMOVED"
+              : "STILL DETECTED"
+          }\n`;
+
+        const foundry =
+          verification.foundry;
 
         if (foundry?.applicable) {
-          markdown += `- Foundry security test: ${
-            foundry.passed ? "PASSED" : "FAILED"
-          }\n`;
+          markdown +=
+            `- Foundry security test: ${
+              foundry.passed
+                ? "PASSED"
+                : "FAILED"
+            }\n`;
         } else {
-          markdown += "- Foundry security test: NOT APPLICABLE\n";
+          markdown +=
+            "- Foundry security test: NOT APPLICABLE\n";
         }
 
-        markdown += `- Overall verification: ${
-          verification.overall ? "PASSED" : "FAILED"
-        }\n`;
+        markdown +=
+          `- Overall verification: ${
+            verification.overall
+              ? "PASSED"
+              : "FAILED"
+          }\n`;
 
         const remaining =
           verification.remaining_detectors || [];
 
-        markdown += `- Remaining detectors: ${
-          remaining.length > 0
-            ? remaining.join(", ")
-            : "None"
-        }\n\n`;
+        markdown +=
+          `- Remaining detectors: ${
+            remaining.length > 0
+              ? remaining.join(", ")
+              : "None"
+          }\n\n`;
       } else {
-        markdown += "### AI Remediation\n\n";
+        markdown +=
+          "### AI Remediation\n\n";
+
         markdown +=
           "No AI-generated remediation was created for this finding.\n\n";
       }
@@ -243,136 +377,169 @@ function buildMarkdownReport(report) {
 
 
 function App() {
-  const [file, setFile] = useState(null);
-  const [report, setReport] = useState(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [file, setFile] =
+    useState(null);
+
+  const [report, setReport] =
+    useState(null);
+
+  const [error, setError] =
+    useState("");
+
+  const [loading, setLoading] =
+    useState(false);
 
 
-  const handleFileChange = (event) => {
-    const selectedFile =
-      event.target.files?.[0];
+  const handleFileChange =
+    (event) => {
+      const selectedFile =
+        event.target.files?.[0];
 
-    setError("");
-    setReport(null);
+      setError("");
+      setReport(null);
 
-    if (!selectedFile) {
-      setFile(null);
-      return;
-    }
+      if (!selectedFile) {
+        setFile(null);
+        return;
+      }
 
-    const fileName =
-      selectedFile.name.toLowerCase();
+      const fileName =
+        selectedFile.name.toLowerCase();
 
-    const validFile =
-      fileName.endsWith(".sol") ||
-      fileName.endsWith(".zip");
+      const validFile =
+        fileName.endsWith(".sol") ||
+        fileName.endsWith(".zip");
 
-    if (!validFile) {
-      setFile(null);
+      if (!validFile) {
+        setFile(null);
 
-      setError(
-        "Please select a .sol file or Foundry .zip project."
+        setError(
+          "Please select a .sol file or Foundry .zip project."
+        );
+
+        return;
+      }
+
+      setFile(selectedFile);
+    };
+
+
+  const handleAnalyze =
+    async () => {
+      if (!file) {
+        setError(
+          "Please select a Solidity file or project first."
+        );
+
+        return;
+      }
+
+      setLoading(true);
+      setError("");
+      setReport(null);
+
+      const formData =
+        new FormData();
+
+      formData.append(
+        "file",
+        file
       );
-
-      return;
-    }
-
-    setFile(selectedFile);
-  };
-
-
-  const handleAnalyze = async () => {
-    if (!file) {
-      setError(
-        "Please select a Solidity file or project first."
-      );
-
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-    setReport(null);
-
-    const formData = new FormData();
-
-    formData.append(
-      "file",
-      file
-    );
-
-    try {
-      const response = await fetch(
-        `${API_URL}/analyze`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
-
-      let data;
 
       try {
-        data = await response.json();
-      } catch {
-        throw new Error(
-          "FixGPT returned an invalid response."
+        const response =
+          await fetch(
+            `${API_URL}/analyze`,
+            {
+              method: "POST",
+              body: formData,
+            }
+          );
+
+        let data;
+
+        try {
+          data =
+            await response.json();
+        } catch {
+          throw new Error(
+            "FixGPT returned an invalid response."
+          );
+        }
+
+        if (!response.ok) {
+          throw new Error(
+            data.detail ||
+              "Analysis failed."
+          );
+        }
+
+        setReport(
+          data.report
         );
+      } catch (err) {
+        setError(
+          err.message ||
+            "Unable to connect to FixGPT."
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+
+  const handleDownloadJSON =
+    () => {
+      if (!report) {
+        return;
       }
 
-      if (!response.ok) {
-        throw new Error(
-          data.detail || "Analysis failed."
-        );
-      }
-
-      setReport(data.report);
-    } catch (err) {
-      setError(
-        err.message ||
-          "Unable to connect to FixGPT."
+      downloadFile(
+        JSON.stringify(
+          report,
+          null,
+          2
+        ),
+        "fixgpt-security-report.json",
+        "application/json"
       );
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
 
-  const handleDownloadJSON = () => {
-    if (!report) {
-      return;
-    }
+  const handleDownloadMarkdown =
+    () => {
+      if (!report) {
+        return;
+      }
 
-    downloadFile(
-      JSON.stringify(
-        report,
-        null,
-        2
-      ),
-      "fixgpt-security-report.json",
-      "application/json"
-    );
-  };
+      const markdown =
+        buildMarkdownReport(
+          report
+        );
 
-
-  const handleDownloadMarkdown = () => {
-    if (!report) {
-      return;
-    }
-
-    const markdown =
-      buildMarkdownReport(report);
-
-    downloadFile(
-      markdown,
-      "fixgpt-security-report.md",
-      "text/markdown"
-    );
-  };
+      downloadFile(
+        markdown,
+        "fixgpt-security-report.md",
+        "text/markdown"
+      );
+    };
 
 
-  const summary = report?.summary;
+  const summary =
+    report?.summary || {};
+
+  const project =
+    report?.project || {};
+
+  const projectScore =
+    project.score ??
+    summary.project_score ??
+    0;
+
+  const projectStatus =
+    project.status ??
+    summary.status ??
+    "FAIL";
 
 
   return (
@@ -391,6 +558,7 @@ function App() {
           <div className="brand-divider"></div>
 
           <div>
+
             <h1>
               Smart Contract FixGPT
             </h1>
@@ -399,6 +567,7 @@ function App() {
               AI-powered Solidity vulnerability
               detection, remediation, and verification.
             </p>
+
           </div>
 
         </div>
@@ -412,8 +581,6 @@ function App() {
 
 
       <main className="container">
-
-        {/* UPLOAD */}
 
         <section className="upload-card">
 
@@ -433,7 +600,9 @@ function App() {
             <input
               type="file"
               accept=".sol,.zip"
-              onChange={handleFileChange}
+              onChange={
+                handleFileChange
+              }
             />
 
             <div className="upload-icon">
@@ -466,8 +635,12 @@ function App() {
 
           <button
             className="analyze-button"
-            onClick={handleAnalyze}
-            disabled={!file || loading}
+            onClick={
+              handleAnalyze
+            }
+            disabled={
+              !file || loading
+            }
           >
             {loading
               ? "Analyzing Contract..."
@@ -476,8 +649,6 @@ function App() {
 
         </section>
 
-
-        {/* LOADING */}
 
         {loading && (
           <section className="loading-card">
@@ -507,8 +678,6 @@ function App() {
         )}
 
 
-        {/* REPORT */}
-
         {report && (
           <section className="results-section">
 
@@ -537,15 +706,35 @@ function App() {
               </div>
 
 
-              <div className="summary-box">
+              <div className="project-result">
 
-                <strong>
-                  {summary?.total_findings ?? 0}
-                </strong>
+                <div className="project-score">
 
-                <span>
-                  Findings
-                </span>
+                  <span>
+                    Project Score
+                  </span>
+
+                  <strong>
+                    {projectScore}
+                    <small>
+                      /100
+                    </small>
+                  </strong>
+
+                </div>
+
+
+                <div
+                  className={
+                    projectStatus === "PASS"
+                      ? "project-status status-passed"
+                      : "project-status status-failed"
+                  }
+                >
+                  {projectStatus === "PASS"
+                    ? "✓ PASS"
+                    : "✗ FAIL"}
+                </div>
 
               </div>
 
@@ -556,14 +745,18 @@ function App() {
 
               <button
                 className="secondary-button"
-                onClick={handleDownloadJSON}
+                onClick={
+                  handleDownloadJSON
+                }
               >
                 Download JSON
               </button>
 
               <button
                 className="secondary-button"
-                onClick={handleDownloadMarkdown}
+                onClick={
+                  handleDownloadMarkdown
+                }
               >
                 Download Markdown
               </button>
@@ -574,33 +767,45 @@ function App() {
             <div className="summary-grid">
 
               <div className="summary-card">
-                <span>Total Findings</span>
+                <span>
+                  Total Findings
+                </span>
+
                 <strong>
-                  {summary?.total_findings ?? 0}
+                  {summary.total_findings ?? 0}
                 </strong>
               </div>
 
 
               <div className="summary-card">
-                <span>Actionable</span>
+                <span>
+                  Actionable
+                </span>
+
                 <strong>
-                  {summary?.actionable_findings ?? 0}
+                  {summary.actionable_findings ?? 0}
                 </strong>
               </div>
 
 
               <div className="summary-card">
-                <span>Skipped</span>
+                <span>
+                  Skipped
+                </span>
+
                 <strong>
-                  {summary?.skipped_findings ?? 0}
+                  {summary.skipped_findings ?? 0}
                 </strong>
               </div>
 
 
               <div className="summary-card">
-                <span>Verified Fixes</span>
+                <span>
+                  Verified Fixes
+                </span>
+
                 <strong>
-                  {summary?.verified_fixes ?? 0}
+                  {summary.verified_fixes ?? 0}
                 </strong>
               </div>
 
@@ -626,8 +831,10 @@ function App() {
                     );
 
                   const remainingDetectors =
-                    remediation?.verification
-                      ?.remaining_detectors || [];
+                    remediation
+                      ?.verification
+                      ?.remaining_detectors ||
+                    [];
 
                   return (
                     <article
@@ -683,7 +890,8 @@ function App() {
                         <span>
                           Function:
                           <strong>
-                            {finding.function || "N/A"}
+                            {finding.function ||
+                              "N/A"}
                           </strong>
                         </span>
 
@@ -708,12 +916,26 @@ function App() {
                       <div className="result-block">
 
                         <h4>
-                          Detector Description
+                          Description
                         </h4>
 
                         <p>
                           {finding.description ||
                             "No description available."}
+                        </p>
+
+                      </div>
+
+
+                      <div className="result-block">
+
+                        <h4>
+                          Resolution
+                        </h4>
+
+                        <p>
+                          {finding.resolution ||
+                            "No resolution available."}
                         </p>
 
                       </div>
